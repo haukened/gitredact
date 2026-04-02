@@ -29,6 +29,7 @@ func NewReplaceCommand() *cli.Command {
 		}...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			output.SetVerbose(cmd.Bool("verbose"))
+			output.SetSilent(cmd.Bool("silent"))
 			repoPath := ""
 			if cmd.Args().Len() > 0 {
 				repoPath = cmd.Args().First()

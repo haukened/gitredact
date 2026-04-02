@@ -84,7 +84,9 @@ func RunDeletePath(req DeletePathRequest) error {
 	}
 
 	// 6. Print plan; exit here if dry-run (zero side effects)
-	plan.Print(p)
+	if !req.Silent {
+		plan.Print(p)
+	}
 	if req.DryRun {
 		output.Print("dry-run: no changes made")
 		return nil

@@ -161,3 +161,57 @@ func TestProgressDone_IdempotentWhenNotActive(t *testing.T) {
 		t.Errorf("ProgressDone (no active progress): expected empty, got %q", got)
 	}
 }
+
+func TestSetSilent_SuppressesPrint(t *testing.T) {
+	defer SetSilent(false)
+	SetSilent(true)
+	got := captureStdout(t, func() { Print("should not appear") })
+	if got != "" {
+		t.Errorf("Print (silent): expected empty, got %q", got)
+	}
+}
+
+func TestSetSilent_SuppressesWarn(t *testing.T) {
+	defer SetSilent(false)
+	SetSilent(true)
+	got := captureStdout(t, func() { Warn("should not appear") })
+	if got != "" {
+		t.Errorf("Warn (silent): expected empty, got %q", got)
+	}
+}
+
+func TestSetSilent_SuppressesVerbose(t *testing.T) {
+	defer SetSilent(false)
+	defer SetVerbose(false)
+	SetSilent(true)
+	SetVerbose(true)
+	got := captureStdout(t, func() { Verbose("should not appear") })
+	if got != "" {
+		t.Errorf("Verbose (silent+verbose): expected empty, got %q", got)
+	}
+}
+
+func TestSetSilent_SuppressesProgress(t *testing.T) {
+	defer SetSilent(false)
+	SetSilent(true)
+	got := captureStdout(t, func() { Progress("step", 1, 5) })
+	if got != "" {
+		t.Errorf("Progress (silent): expected empty, got %q", got)
+	}
+}
+
+func TestIsSilent_Default(t *testing.T) {
+	defer SetSilent(false)
+	SetSilent(false)
+	if IsSilent() {
+		t.Error("IsSilent: expected false by default")
+	}
+}
+
+func TestIsSilent_WhenEnabled(t *testing.T) {
+	defer SetSilent(false)
+	SetSilent(true)
+	if !IsSilent() {
+		t.Error("IsSilent: expected true after SetSilent(true)")
+	}
+}
