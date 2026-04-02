@@ -10,8 +10,10 @@ import (
 	"gitredact/internal/gitutil"
 )
 
+var Version = "dev"
+
 func main() {
-	app := gitredactcli.NewApp()
+	app := gitredactcli.NewApp(Version)
 	if err := app.Run(context.Background(), os.Args); err != nil {
 		code := exitcodes.InvalidUsage
 		if ee, ok := err.(*gitutil.ExecError); ok {

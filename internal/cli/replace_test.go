@@ -82,7 +82,7 @@ func TestNewReplaceCommand_Action_DryRun(t *testing.T) {
 	dir, repo := initRepo(t)
 	commitFile(t, dir, repo, "secret.txt", "token=abc123", "initial")
 
-	app := NewApp()
+	app := NewApp("dev")
 	err := app.Run(context.Background(), []string{
 		"gitredact", "replace", "--from=abc123", "--yes", "--dry-run", "--silent", dir,
 	})
@@ -96,7 +96,7 @@ func TestNewReplaceCommand_Action_NoPositionalArg(t *testing.T) {
 	// resolves to the CWD. The test CWD is inside a git repo, so this
 	// should succeed if a commit with the target string is present.
 	// We just verify the error path when the string is not found.
-	app := NewApp()
+	app := NewApp("dev")
 	err := app.Run(context.Background(), []string{
 		"gitredact", "replace", "--from=this-string-does-not-exist-anywhere", "--yes", "--dry-run",
 	})

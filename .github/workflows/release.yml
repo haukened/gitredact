@@ -46,7 +46,7 @@ jobs:
         run: |
           EXT=""
           if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
-          go build -o "gitredact-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/gitredact
+          go build -ldflags "-X main.Version=${{ github.ref_name }}" -o "gitredact-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/gitredact
       - name: Upload artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:

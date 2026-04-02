@@ -31,29 +31,36 @@ func TestGlobalFlags_ExpectedNames(t *testing.T) {
 }
 
 func TestNewApp_Name(t *testing.T) {
-	app := NewApp()
+	app := NewApp("dev")
 	if app.Name != "gitredact" {
 		t.Errorf("NewApp().Name = %q, want %q", app.Name, "gitredact")
 	}
 }
 
 func TestNewApp_SubcommandCount(t *testing.T) {
-	app := NewApp()
-	if len(app.Commands) != 2 {
-		t.Errorf("NewApp: expected 2 subcommands, got %d", len(app.Commands))
+	app := NewApp("dev")
+	if len(app.Commands) != 3 {
+		t.Errorf("NewApp: expected 3 subcommands, got %d", len(app.Commands))
 	}
 }
 
 func TestNewApp_SubcommandNames(t *testing.T) {
-	app := NewApp()
+	app := NewApp("dev")
 	names := make(map[string]bool, len(app.Commands))
 	for _, cmd := range app.Commands {
 		names[cmd.Name] = true
 	}
-	for _, want := range []string{"replace", "delete-path"} {
+	for _, want := range []string{"replace", "delete-path", "version"} {
 		if !names[want] {
 			t.Errorf("NewApp: missing subcommand %q", want)
 		}
+	}
+}
+
+func TestNewApp_Version(t *testing.T) {
+	app := NewApp("v1.2.3")
+	if app.Version != "v1.2.3" {
+		t.Errorf("NewApp().Version = %q, want %q", app.Version, "v1.2.3")
 	}
 }
 

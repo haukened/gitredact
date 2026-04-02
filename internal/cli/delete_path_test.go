@@ -71,7 +71,7 @@ func TestNewDeletePathCommand_Action_DryRun(t *testing.T) {
 	dir, repo := initRepo(t)
 	commitFile(t, dir, repo, "private.key", "private key data", "initial")
 
-	app := NewApp()
+	app := NewApp("dev")
 	err := app.Run(context.Background(), []string{
 		"gitredact", "delete-path", "--path=private.key", "--yes", "--dry-run", "--silent", dir,
 	})
@@ -83,7 +83,7 @@ func TestNewDeletePathCommand_Action_DryRun(t *testing.T) {
 func TestNewDeletePathCommand_Action_NoPositionalArg(t *testing.T) {
 	// Exercises the repoPath="" branch (uses CWD). Expect an error because
 	// the path is unlikely to exist in the CWD repo history.
-	app := NewApp()
+	app := NewApp("dev")
 	err := app.Run(context.Background(), []string{
 		"gitredact", "delete-path", "--path=this-path-does-not-exist/anywhere.txt",
 		"--yes", "--dry-run",

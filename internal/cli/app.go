@@ -16,13 +16,15 @@ func GlobalFlags() []cli.Flag {
 	}
 }
 
-func NewApp() *cli.Command {
+func NewApp(version string) *cli.Command {
 	return &cli.Command{
-		Name:  "gitredact",
-		Usage: "rewrite Git history to remove sensitive data",
+		Name:    "gitredact",
+		Usage:   "rewrite Git history to remove sensitive data",
+		Version: version,
 		Commands: []*cli.Command{
 			NewReplaceCommand(),
 			NewDeletePathCommand(),
+			NewVersionCommand(),
 		},
 	}
 }
