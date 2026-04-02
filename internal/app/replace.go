@@ -69,7 +69,7 @@ func RunReplace(req ReplaceRequest) error {
 		backupRef = fmt.Sprintf("refs/gitredact-backup/%d", time.Now().Unix())
 	}
 
-	filterRepoCmd := fmt.Sprintf("git-filter-repo --replace-text <tmpfile> --force")
+	filterRepoCmd := "git-filter-repo --replace-text <tmpfile> --force"
 	if !req.IncludeTags {
 		filterRepoCmd += " --refs refs/heads/*"
 	}
