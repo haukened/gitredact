@@ -11,11 +11,30 @@ A Go CLI that rewrites Git history to replace a literal string or delete an exac
 
 You will need to push changes after running, and collaborators will need to re-clone or hard-reset their copies. If the replaced string was a secret, **rotate it** — rewriting history does not invalidate credentials already in use.
 
-## Requirements
+## Installation
 
-- Go 1.21+
+### macOS / Linux
 
-## Build
+```sh
+curl -fsSL https://raw.githubusercontent.com/haukened/gitredact/main/install.sh | sh
+```
+
+The script detects your OS and architecture, downloads the appropriate binary from the [latest release](https://github.com/haukened/gitredact/releases/latest), installs it to `~/.local/bin`, and adds that directory to your shell's PATH if needed.
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/haukened/gitredact/main/install.ps1 | iex
+```
+
+Downloads the binary to `$USERPROFILE\.local\bin` and updates your user PATH permanently.
+
+> [!TIP]
+> To inspect the script before running it, download it first: `irm <url> -OutFile install.ps1`, review, then run `.\install.ps1`.
+
+### Build from Source
+
+Requires Go 1.21+.
 
 ```sh
 go build -o gitredact ./cmd/gitredact
