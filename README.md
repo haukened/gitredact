@@ -1,16 +1,11 @@
 # gitredact
 
-A Go CLI that rewrites Git history to replace a literal string or delete an exact path across all reachable commits. Uses `git-filter-repo` as the rewrite engine. Safety-first: dry-run by default, opt-in backup, strict post-rewrite verification.
+A Go CLI that rewrites Git history to replace a literal string or delete an exact path across all reachable commits. Implemented in pure Go — no Python or external rewrite tools required. Safety-first: dry-run by default, opt-in backup, strict post-rewrite verification.
 
 ## Requirements
 
 - Go 1.21+
 - [`git`](https://git-scm.com/) on PATH
-- [`git-filter-repo`](https://github.com/newren/git-filter-repo) on PATH
-  ```
-  pip install git-filter-repo
-  # or: brew install git-filter-repo
-  ```
 
 ## Build
 
@@ -59,6 +54,7 @@ gitredact delete-path --path secrets/credentials.txt --yes --include-tags --back
 | `--allow-dirty` | Allow running on a dirty worktree |
 | `--verbose` | Verbose output |
 | `--backup` | Create a backup ref (`refs/gitredact-backup/<timestamp>`) before rewrite (opt-in; not created in dry-run) |
+| `--silent` | Suppress per-commit progress output during rewrite |
 
 ## Exit Codes
 
