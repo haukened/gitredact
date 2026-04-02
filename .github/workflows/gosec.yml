@@ -1,0 +1,17 @@
+name: GoSec Weekly Scan
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # every Sunday at midnight UTC
+  workflow_dispatch:
+
+jobs:
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run gosec
+        uses: securego/gosec@223e19b8856e00f02cc67804499a83f77e208f3c # v2.25.0
+        with:
+          args: ./...
