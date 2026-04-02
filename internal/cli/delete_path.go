@@ -6,6 +6,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"gitredact/internal/app"
+	"gitredact/internal/output"
 )
 
 // NewDeletePathCommand returns the "delete-path" subcommand.
@@ -21,6 +22,7 @@ func NewDeletePathCommand() *cli.Command {
 			},
 		}...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			output.SetVerbose(cmd.Bool("verbose"))
 			repoPath := ""
 			if cmd.Args().Len() > 0 {
 				repoPath = cmd.Args().First()
