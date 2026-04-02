@@ -1,6 +1,6 @@
 module gitredact
 
-go 1.26.1
+go 1.26
 
 require (
 	github.com/go-git/go-git/v5 v5.17.2
