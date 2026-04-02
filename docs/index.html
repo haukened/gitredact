@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gitredact</title>
+  <meta name="description" content="Rewrite Git history to remove secrets or delete files — in pure Go.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-card: #f6f8fa;
+      --fg: #1a1a1a;
+      --fg-muted: #6e7781;
+      --accent: #0969da;
+      --code-bg: #1e1e1e;
+      --code-fg: #d4d4d4;
+      --border: #d0d7de;
+      --tab-bg: #eaeef2;
+      --tab-fg: #57606a;
+      --tab-active-bg: #0969da;
+      --tab-active-fg: #ffffff;
+      --copy-bg: #3d444d;
+      --copy-fg: #ffffff;
+      --warn-bg: #fff8c5;
+      --warn-border: #d4a72c;
+      --warn-fg: #4b3b00;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --bg-card: #161b22;
+        --fg: #e6edf3;
+        --fg-muted: #8b949e;
+        --accent: #58a6ff;
+        --code-bg: #010409;
+        --code-fg: #e6edf3;
+        --border: #30363d;
+        --tab-bg: #21262d;
+        --tab-fg: #8b949e;
+        --tab-active-bg: #58a6ff;
+        --tab-active-fg: #0d1117;
+        --copy-bg: #30363d;
+        --copy-fg: #e6edf3;
+        --warn-bg: #2d2a00;
+        --warn-border: #9e6a03;
+        --warn-fg: #e3b341;
+      }
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1.25rem;
+      gap: 2.5rem;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      max-width: 600px;
+    }
+
+    .hero h1 {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: clamp(2rem, 6vw, 3.25rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .hero .tagline {
+      margin-top: 0.875rem;
+      font-size: 1.0625rem;
+      color: var(--fg-muted);
+      line-height: 1.65;
+    }
+
+    .warning {
+      margin-top: 1.25rem;
+      padding: 0.75rem 1rem;
+      background: var(--warn-bg);
+      border-left: 3px solid var(--warn-border);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.8125rem;
+      color: var(--warn-fg);
+      text-align: left;
+      line-height: 1.55;
+    }
+
+    /* ── Install card ── */
+    .card {
+      width: 100%;
+      max-width: 620px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      background: var(--tab-bg);
+      color: var(--tab-fg);
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .tab:first-child {
+      border-radius: 12px 0 0 0;
+    }
+
+    .tab:last-child {
+      border-radius: 0 12px 0 0;
+    }
+
+    .tab.active {
+      background: var(--tab-active-bg);
+      color: var(--tab-active-fg);
+    }
+
+    .panel {
+      display: none;
+      padding: 1.5rem;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .section-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      margin-bottom: 0.625rem;
+    }
+
+    .code-row {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 0.875rem 1rem;
+    }
+
+    .code-row code {
+      flex: 1;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8125rem;
+      color: var(--code-fg);
+      word-break: break-all;
+    }
+
+    .copy {
+      flex-shrink: 0;
+      padding: 0.3125rem 0.625rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background: var(--copy-bg);
+      color: var(--copy-fg);
+      transition: opacity 0.12s;
+      white-space: nowrap;
+    }
+
+    .copy:hover {
+      opacity: 0.75;
+    }
+
+    .note {
+      margin-top: 0.625rem;
+      font-size: 0.8rem;
+      color: var(--fg-muted);
+      line-height: 1.55;
+    }
+
+    .note code {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.875em;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+
+    .divider {
+      margin: 1.25rem 0;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Links ── */
+    .links {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.875rem;
+      color: var(--fg-muted);
+      text-decoration: none;
+      transition: color 0.12s;
+    }
+
+    .links a:hover {
+      color: var(--accent);
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 1.25rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--fg-muted);
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: var(--fg-muted);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--accent);
+    }
+
+    @media (max-width: 480px) {
+      .code-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .copy {
+        align-self: flex-end;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+
+    <div class="hero">
+      <h1>gitredact</h1>
+      <p class="tagline">Rewrite Git history to replace a secret or delete a file — across all commits. Pure Go, no
+        external tools required.</p>
+      <div class="warning">
+        ⚠ This tool rewrites history permanently. Always run with <strong>--dry-run</strong> first. After rewriting,
+        collaborators must re-clone or hard-reset. Rotate any exposed secrets.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab" data-panel="unix" onclick="switchTab('unix')">macOS / Linux</button>
+        <button class="tab" data-panel="windows" onclick="switchTab('windows')">Windows</button>
+      </div>
+
+      <!-- macOS / Linux -->
+      <div class="panel" id="panel-unix">
+        <p class="section-label">Install</p>
+        <div class="code-row">
+          <code>curl -fsSL https://raw.githubusercontent.com/haukened/gitredact/main/install.sh | sh</code>
+          <button class="copy"
+            onclick="copy(this, 'curl -fsSL https://raw.githubusercontent.com/haukened/gitredact/main/install.sh | sh')">Copy</button>
+        </div>
+        <p class="note">Installs the latest release binary to <code>~/.local/bin</code> and adds it to your PATH.
+          Supports bash, zsh, and fish.</p>
+
+        <hr class="divider">
+
+        <p class="section-label">Build from source</p>
+        <div class="code-row">
+          <code>go build -o gitredact ./cmd/gitredact</code>
+          <button class="copy" onclick="copy(this, 'go build -o gitredact ./cmd/gitredact')">Copy</button>
+        </div>
+        <p class="note">Requires Go 1.21+.</p>
+      </div>
+
+      <!-- Windows -->
+      <div class="panel" id="panel-windows">
+        <p class="section-label">Install (PowerShell 5.1+)</p>
+        <div class="code-row">
+          <code>irm https://raw.githubusercontent.com/haukened/gitredact/main/install.ps1 | iex</code>
+          <button class="copy"
+            onclick="copy(this, 'irm https://raw.githubusercontent.com/haukened/gitredact/main/install.ps1 | iex')">Copy</button>
+        </div>
+        <p class="note">Installs the latest release binary to <code>%USERPROFILE%\.local\bin</code> and updates your
+          user PATH permanently.<br>
+          To inspect before running: download with <code>irm &lt;url&gt; -OutFile install.ps1</code>, then run
+          <code>.\install.ps1</code>.
+        </p>
+
+        <hr class="divider">
+
+        <p class="section-label">Build from source</p>
+        <div class="code-row">
+          <code>go build -o gitredact.exe ./cmd/gitredact</code>
+          <button class="copy" onclick="copy(this, 'go build -o gitredact.exe ./cmd/gitredact')">Copy</button>
+        </div>
+        <p class="note">Requires Go 1.21+.</p>
+      </div>
+    </div>
+
+    <div class="links">
+      <a href="https://github.com/haukened/gitredact">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path
+            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+        </svg>
+        GitHub
+      </a>
+      <a href="https://github.com/haukened/gitredact/releases">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Releases
+      </a>
+      <a href="https://github.com/haukened/gitredact/issues">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        Issues
+      </a>
+    </div>
+
+  </main>
+
+  <footer>
+    GNU GPL 3.0 License &middot; <a href="https://github.com/haukened/gitredact">haukened/gitredact</a>
+  </footer>
+
+  <script>
+    function switchTab(panel) {
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.panel === panel);
+      });
+      document.querySelectorAll('.panel').forEach(function (p) {
+        p.classList.toggle('active', p.id === 'panel-' + panel);
+      });
+    }
+
+    function copy(btn, text) {
+      navigator.clipboard.writeText(text).then(function () {
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = orig; }, 2000);
+      });
+    }
+
+    var isWindows = /Windows/.test(navigator.userAgent) ||
+      (navigator.userAgentData && navigator.userAgentData.platform === 'Windows');
+    switchTab(isWindows ? 'windows' : 'unix');
+  </script>
+</body>
+
+</html>
