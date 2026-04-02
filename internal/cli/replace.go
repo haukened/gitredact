@@ -20,9 +20,10 @@ func NewReplaceCommand() *cli.Command {
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:     "to",
-				Usage:    "literal string to substitute (required)",
-				Required: true,
+				Name:        "to",
+				Usage:       "literal string to substitute",
+				DefaultText: "REDACTED",
+				Value:       "REDACTED",
 			},
 		}...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
