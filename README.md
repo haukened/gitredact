@@ -33,6 +33,9 @@ gitredact replace --from "secret-token" --to "REDACTED" --yes --backup
 
 # Run on a specific repo:
 gitredact replace --from "old-host" --to "new-host" --yes /path/to/repo
+
+# Suppress all output (errors only):
+gitredact replace --from "secret-token" --to "REDACTED" --yes --silent
 ```
 
 ### Delete a file path from history
@@ -46,6 +49,9 @@ gitredact delete-path --path secrets/credentials.txt --yes
 
 # Include tags in rewrite and create a backup:
 gitredact delete-path --path secrets/credentials.txt --yes --include-tags --backup
+
+# Suppress all output (errors only):
+gitredact delete-path --path secrets/credentials.txt --yes --silent
 ```
 
 ## Global Flags
@@ -58,7 +64,7 @@ gitredact delete-path --path secrets/credentials.txt --yes --include-tags --back
 | `--allow-dirty` | Allow running on a dirty worktree |
 | `--verbose` | Verbose output |
 | `--backup` | Create a backup ref (`refs/gitredact-backup/<timestamp>`) before rewrite (opt-in; not created in dry-run) |
-| `--silent` | Suppress per-commit progress output during rewrite |
+| `--silent` | Suppress all output; only errors are surfaced via exit code |
 
 ## Exit Codes
 
