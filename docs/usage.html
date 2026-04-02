@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gitredact — Usage</title>
+  <meta name="description"
+    content="Usage instructions for gitredact — rewrite Git history to remove secrets or delete files.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-card: #f6f8fa;
+      --fg: #1a1a1a;
+      --fg-muted: #6e7781;
+      --accent: #0969da;
+      --code-bg: #1e1e1e;
+      --code-fg: #d4d4d4;
+      --border: #d0d7de;
+      --copy-bg: #3d444d;
+      --copy-fg: #ffffff;
+      --warn-bg: #fff8c5;
+      --warn-border: #d4a72c;
+      --warn-fg: #4b3b00;
+      --tip-bg: #ddf4ff;
+      --tip-border: #54aeff;
+      --tip-fg: #0550ae;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --bg-card: #161b22;
+        --fg: #e6edf3;
+        --fg-muted: #8b949e;
+        --accent: #58a6ff;
+        --code-bg: #010409;
+        --code-fg: #e6edf3;
+        --border: #30363d;
+        --copy-bg: #30363d;
+        --copy-fg: #e6edf3;
+        --warn-bg: #2d2a00;
+        --warn-border: #9e6a03;
+        --warn-fg: #e3b341;
+        --tip-bg: #0c2d6b;
+        --tip-border: #388bfd;
+        --tip-fg: #a5d6ff;
+      }
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Nav ── */
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav a.home {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-weight: 700;
+      font-size: 1.0625rem;
+      color: var(--fg);
+      text-decoration: none;
+    }
+
+    nav a.home:hover {
+      color: var(--accent);
+    }
+
+    nav .sep {
+      color: var(--border);
+    }
+
+    nav .current {
+      font-size: 0.875rem;
+      color: var(--fg-muted);
+    }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      max-width: 780px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+    }
+
+    /* ── Section ── */
+    section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    section h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    p {
+      font-size: 0.9375rem;
+      color: var(--fg-muted);
+      line-height: 1.65;
+    }
+
+    p code,
+    li code {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.875em;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+
+    /* ── Code block ── */
+    .code-block {
+      background: var(--code-bg);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .code-block-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6e7681;
+    }
+
+    .copy {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background: var(--copy-bg);
+      color: var(--copy-fg);
+      transition: opacity 0.12s;
+      white-space: nowrap;
+    }
+
+    .copy:hover {
+      opacity: 0.75;
+    }
+
+    .code-block pre {
+      padding: 1rem;
+      overflow-x: auto;
+    }
+
+    .code-block code {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8125rem;
+      color: var(--code-fg);
+      line-height: 1.65;
+      white-space: pre;
+    }
+
+    .code-block code .comment {
+      color: #6a9955;
+    }
+
+    .code-block code .flag {
+      color: #9cdcfe;
+    }
+
+    .code-block code .value {
+      color: #ce9178;
+    }
+
+    /* ── Callout ── */
+    .callout {
+      padding: 0.75rem 1rem;
+      border-left: 3px solid;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.8125rem;
+      line-height: 1.55;
+    }
+
+    .callout.warn {
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+      color: var(--warn-fg);
+    }
+
+    .callout.tip {
+      background: var(--tip-bg);
+      border-color: var(--tip-border);
+      color: var(--tip-fg);
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.625rem 0.875rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.5;
+      color: var(--fg);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 1.25rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--fg-muted);
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: var(--fg-muted);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--accent);
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav>
+    <a class="home" href="index.html">gitredact</a>
+    <span class="sep">/</span>
+    <span class="current">Usage</span>
+  </nav>
+
+  <main>
+
+    <!-- ── replace ──────────────────────────────────────────────────────── -->
+    <section>
+      <h2>replace</h2>
+      <p>Rewrites every commit that contains a literal string, replacing all occurrences with a new value. Operates on
+        all branches reachable from HEAD by default.</p>
+
+      <h3>Options</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Required</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--from</code></td>
+              <td>Yes</td>
+              <td>—</td>
+              <td>Literal string to search for</td>
+            </tr>
+            <tr>
+              <td><code>--to</code></td>
+              <td>No</td>
+              <td><code>REDACTED</code></td>
+              <td>Replacement value</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Examples</h3>
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="code-block-label">sh</span>
+          <button class="copy" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><code><span class="comment"># Dry-run — no changes made</span>
+gitredact replace <span class="flag">--dry-run</span> <span class="flag">--from</span> <span class="value">"secret-token"</span> <span class="flag">--to</span> <span class="value">"REDACTED"</span>
+
+<span class="comment"># Execute with confirmation prompt</span>
+gitredact replace <span class="flag">--from</span> <span class="value">"secret-token"</span> <span class="flag">--to</span> <span class="value">"REDACTED"</span>
+
+<span class="comment"># Skip prompt, create a backup ref before rewriting</span>
+gitredact replace <span class="flag">--from</span> <span class="value">"secret-token"</span> <span class="flag">--to</span> <span class="value">"REDACTED"</span> <span class="flag">--yes</span> <span class="flag">--backup</span>
+
+<span class="comment"># Run on a specific repository path</span>
+gitredact replace <span class="flag">--from</span> <span class="value">"old-host"</span> <span class="flag">--to</span> <span class="value">"new-host"</span> <span class="flag">--yes</span> /path/to/repo
+
+<span class="comment"># Silent — errors only</span>
+gitredact replace <span class="flag">--from</span> <span class="value">"secret-token"</span> <span class="flag">--to</span> <span class="value">"REDACTED"</span> <span class="flag">--yes</span> <span class="flag">--silent</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ── delete-path ───────────────────────────────────────────────────── -->
+    <section>
+      <h2>delete-path</h2>
+      <p>Removes an exact file path from every commit in history. After the rewrite, the file will not appear in any
+        commit, tag, or tree object.</p>
+
+      <h3>Options</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Required</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--path</code></td>
+              <td>Yes</td>
+              <td>Repository-relative file path to remove</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Examples</h3>
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="code-block-label">sh</span>
+          <button class="copy" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><code><span class="comment"># Dry-run — no changes made</span>
+gitredact delete-path <span class="flag">--dry-run</span> <span class="flag">--path</span> <span class="value">secrets/credentials.txt</span>
+
+<span class="comment"># Execute with confirmation prompt</span>
+gitredact delete-path <span class="flag">--path</span> <span class="value">secrets/credentials.txt</span> <span class="flag">--yes</span>
+
+<span class="comment"># Include tags in rewrite and create a backup</span>
+gitredact delete-path <span class="flag">--path</span> <span class="value">secrets/credentials.txt</span> <span class="flag">--yes</span> <span class="flag">--include-tags</span> <span class="flag">--backup</span>
+
+<span class="comment"># Silent — errors only</span>
+gitredact delete-path <span class="flag">--path</span> <span class="value">secrets/credentials.txt</span> <span class="flag">--yes</span> <span class="flag">--silent</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ── Global flags ─────────────────────────────────────────────────── -->
+    <section>
+      <h2>Global flags</h2>
+      <p>These flags apply to all subcommands.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--dry-run</code></td>
+              <td>Print plan and exit; zero side effects</td>
+            </tr>
+            <tr>
+              <td><code>--yes</code></td>
+              <td>Skip interactive confirmation</td>
+            </tr>
+            <tr>
+              <td><code>--include-tags</code></td>
+              <td>Rewrite tags in addition to branches</td>
+            </tr>
+            <tr>
+              <td><code>--allow-dirty</code></td>
+              <td>Allow running on a dirty worktree</td>
+            </tr>
+            <tr>
+              <td><code>--verbose</code></td>
+              <td>Verbose output</td>
+            </tr>
+            <tr>
+              <td><code>--backup</code></td>
+              <td>Create a backup ref (<code>refs/gitredact-backup/&lt;timestamp&gt;</code>) before rewriting; skipped
+                in dry-run</td>
+            </tr>
+            <tr>
+              <td><code>--silent</code></td>
+              <td>Suppress all output; only errors are surfaced via exit code</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Exit codes ────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Exit codes</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>0</code></td>
+              <td>Success</td>
+            </tr>
+            <tr>
+              <td><code>2</code></td>
+              <td>Invalid usage</td>
+            </tr>
+            <tr>
+              <td><code>3</code></td>
+              <td>Repo validation failure</td>
+            </tr>
+            <tr>
+              <td><code>4</code></td>
+              <td>Dirty worktree refusal</td>
+            </tr>
+            <tr>
+              <td><code>5</code></td>
+              <td>No matches found in preflight</td>
+            </tr>
+            <tr>
+              <td><code>6</code></td>
+              <td>Rewrite execution failure</td>
+            </tr>
+            <tr>
+              <td><code>7</code></td>
+              <td>User declined confirmation</td>
+            </tr>
+            <tr>
+              <td><code>8</code></td>
+              <td>Verification failure</td>
+            </tr>
+            <tr>
+              <td><code>9</code></td>
+              <td>Dependency missing</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Safety notes ──────────────────────────────────────────────────── -->
+    <section>
+      <h2>Safety notes</h2>
+      <div class="callout warn">
+        ⚠ This tool rewrites history permanently and cannot be undone without a backup. Always run with
+        <strong>--dry-run</strong> first.
+      </div>
+      <ul style="padding-left:1.25rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <li style="font-size:0.9375rem; color:var(--fg-muted); line-height:1.65">History is rewritten <strong
+            style="color:var(--fg)">locally only</strong>. The tool does not push anything.</li>
+        <li style="font-size:0.9375rem; color:var(--fg-muted); line-height:1.65">After a successful run, collaborators
+          must re-clone or hard-reset their copies.</li>
+        <li style="font-size:0.9375rem; color:var(--fg-muted); line-height:1.65">If the replaced string was a secret,
+          <strong style="color:var(--fg)">rotate it</strong> — rewriting history does not invalidate credentials already
+          in use.
+        </li>
+        <li style="font-size:0.9375rem; color:var(--fg-muted); line-height:1.65">Use <code>--backup</code> to save a
+          recovery ref (<code>refs/gitredact-backup/&lt;timestamp&gt;</code>) before rewriting.</li>
+      </ul>
+      <div class="callout tip">
+        💡 Tip: combine <code>--backup</code> with <code>--dry-run</code> on the first run to understand the scope of
+        changes before committing.
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    GNU GPL 3.0 License &middot; <a href="https://github.com/haukened/gitredact">haukened/gitredact</a>
+  </footer>
+
+  <script>
+    function copyBlock(btn) {
+      var code = btn.closest('.code-block').querySelector('code');
+      var text = code.innerText;
+      navigator.clipboard.writeText(text).then(function () {
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = orig; }, 2000);
+      });
+    }
+  </script>
+
+</body>
+
+</html>
