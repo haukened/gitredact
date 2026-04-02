@@ -314,7 +314,9 @@ func (rw *historyRewriter) rewriteBlob(oldHash plumbing.Hash, filePath string) (
 		return plumbing.ZeroHash, false, fmt.Errorf("could not open blob %s: %w", oldHash, err)
 	}
 	content, readErr := io.ReadAll(reader)
-	reader.Close()
+	if closeErr := reader.Close(); closeErr != nil && readErr == nil {
+		readErr = closeErr
+	}
 	if readErr != nil {
 		return plumbing.ZeroHash, false, fmt.Errorf("could not read blob %s: %w", oldHash, readErr)
 	}
