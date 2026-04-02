@@ -12,6 +12,7 @@ func GlobalFlags() []cli.Flag {
 		&cli.BoolFlag{Name: "allow-dirty", Usage: "allow running on a dirty worktree"},
 		&cli.BoolFlag{Name: "verbose", Usage: "verbose output"},
 		&cli.BoolFlag{Name: "backup", Usage: "create a backup ref before rewrite (opt-in; skipped in dry-run)"},
+		&cli.BoolFlag{Name: "silent", Usage: "suppress per-commit progress output during rewrite"},
 	}
 }
 

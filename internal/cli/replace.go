@@ -40,6 +40,7 @@ func NewReplaceCommand() *cli.Command {
 				IncludeTags: cmd.Bool("include-tags"),
 				AllowDirty:  cmd.Bool("allow-dirty"),
 				Backup:      cmd.Bool("backup"),
+				Silent:      cmd.Bool("silent"),
 			})
 		},
 	}

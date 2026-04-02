@@ -25,16 +25,12 @@ type ReplaceRequest struct {
 	IncludeTags bool
 	AllowDirty  bool
 	Backup      bool
+	Silent      bool
 }
 
 // RunReplace orchestrates the full replace workflow.
 func RunReplace(req ReplaceRequest) error {
-	// 1. Dependency check
-	if err := gitutil.CheckDeps(); err != nil {
-		return err
-	}
-
-	// 2. Resolve repo root
+	// 1. Resolve repo root
 	root, err := gitutil.ResolveRoot(req.RepoPath)
 	if err != nil {
 		return err
@@ -55,8 +51,14 @@ func RunReplace(req ReplaceRequest) error {
 
 	// 4. Preflight: confirm the string exists somewhere in reachable history
 	output.Verbose("running preflight check...")
-	stdout, _, err := gitutil.Run(root, "git", "log", "--all", "-S", req.From, "--oneline")
-	if err != nil || strings.TrimSpace(stdout) == "" {
+	exists, err := gitutil.StringExistsInHistory(root, req.From)
+	if err != nil {
+		return &gitutil.ExecError{
+			Code:    exitcodes.NoMatchesFound,
+			Message: fmt.Sprintf("preflight: could not scan history: %v", err),
+		}
+	}
+	if !exists {
 		return &gitutil.ExecError{
 			Code:    exitcodes.NoMatchesFound,
 			Message: fmt.Sprintf("preflight: string %q not found in reachable history", req.From),
@@ -69,9 +71,9 @@ func RunReplace(req ReplaceRequest) error {
 		backupRef = fmt.Sprintf("refs/gitredact-backup/%d", time.Now().Unix())
 	}
 
-	filterRepoCmd := "git-filter-repo --replace-text <tmpfile> --force"
+	rewriteCmd := "gitredact rewriter.Replace (pure Go)"
 	if !req.IncludeTags {
-		filterRepoCmd += " --refs refs/heads/*"
+		rewriteCmd += " [branches only]"
 	}
 
 	p := plan.Plan{
@@ -82,7 +84,7 @@ func RunReplace(req ReplaceRequest) error {
 		IncludeTags:   req.IncludeTags,
 		BackupEnabled: req.Backup,
 		BackupRef:     backupRef,
-		Commands:      []string{filterRepoCmd},
+		Commands:      []string{rewriteCmd},
 	}
 
 	// 6. Print plan; exit here if dry-run (zero side effects)
@@ -107,24 +109,14 @@ func RunReplace(req ReplaceRequest) error {
 	// 9. Create backup ref (after confirmation, before rewrite)
 	if req.Backup {
 		output.Print("creating backup ref: %s", backupRef)
-		_, stderr, err := gitutil.Run(root, "git", "update-ref", backupRef, "HEAD")
-		if err != nil {
-			return &gitutil.ExecError{
-				Code:    exitcodes.RewriteExecution,
-				Message: fmt.Sprintf("failed to create backup ref: %s", stderr),
-			}
+		if err := gitutil.CreateBackupRef(root, backupRef); err != nil {
+			return err
 		}
 	}
 
-	// 10. Write replacements file, run filter-repo, clean up
-	tmpFile, cleanup, err := filterrepo.WriteReplacementsFile(req.From, req.To)
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-
+	// 10. Run pure-Go rewriter.
 	output.Print("executing rewrite...")
-	if err := filterrepo.RunReplace(root, tmpFile, req.IncludeTags); err != nil {
+	if err := filterrepo.RunReplace(root, req.From, req.To, req.IncludeTags, req.Silent); err != nil {
 		return err
 	}
 
