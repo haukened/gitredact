@@ -1,0 +1,159 @@
+package app
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"gitredact/internal/exitcodes"
+	"gitredact/internal/filterrepo"
+	"gitredact/internal/gitutil"
+	"gitredact/internal/output"
+	"gitredact/internal/plan"
+	"gitredact/internal/verify"
+)
+
+// ReplaceRequest holds all inputs for the replace operation.
+type ReplaceRequest struct {
+	From        string
+	To          string
+	RepoPath    string
+	DryRun      bool
+	Yes         bool
+	IncludeTags bool
+	AllowDirty  bool
+	Backup      bool
+}
+
+// RunReplace orchestrates the full replace workflow.
+func RunReplace(req ReplaceRequest) error {
+	// 1. Dependency check
+	if err := gitutil.CheckDeps(); err != nil {
+		return err
+	}
+
+	// 2. Resolve repo root
+	root, err := gitutil.ResolveRoot(req.RepoPath)
+	if err != nil {
+		return err
+	}
+	output.Verbose("repo root: %s", root)
+
+	// 3. Dirty worktree check
+	dirty, err := gitutil.IsDirty(root)
+	if err != nil {
+		return err
+	}
+	if dirty && !req.AllowDirty {
+		return &gitutil.ExecError{
+			Code:    exitcodes.DirtyWorktree,
+			Message: "worktree has uncommitted changes; use --allow-dirty to proceed",
+		}
+	}
+
+	// 4. Preflight: confirm the string exists somewhere in reachable history
+	output.Verbose("running preflight check...")
+	stdout, _, err := gitutil.Run(root, "git", "log", "--all", "-S", req.From, "--oneline")
+	if err != nil || strings.TrimSpace(stdout) == "" {
+		return &gitutil.ExecError{
+			Code:    exitcodes.NoMatchesFound,
+			Message: fmt.Sprintf("preflight: string %q not found in reachable history", req.From),
+		}
+	}
+
+	// 5. Build plan
+	backupRef := ""
+	if req.Backup {
+		backupRef = fmt.Sprintf("refs/gitredact-backup/%d", time.Now().Unix())
+	}
+
+	filterRepoCmd := fmt.Sprintf("git-filter-repo --replace-text <tmpfile> --force")
+	if !req.IncludeTags {
+		filterRepoCmd += " --refs refs/heads/*"
+	}
+
+	p := plan.Plan{
+		RepoRoot:      root,
+		Operation:     "replace",
+		Params:        map[string]string{"from": req.From, "to": req.To},
+		IsDirty:       dirty,
+		IncludeTags:   req.IncludeTags,
+		BackupEnabled: req.Backup,
+		BackupRef:     backupRef,
+		Commands:      []string{filterRepoCmd},
+	}
+
+	// 6. Print plan; exit here if dry-run (zero side effects)
+	plan.Print(p)
+	if req.DryRun {
+		output.Print("dry-run: no changes made")
+		return nil
+	}
+
+	// 7. Interactive confirmation
+	if !req.Yes {
+		if err := confirm(); err != nil {
+			return err
+		}
+	}
+
+	// 8. Warnings
+	output.Warn("Git history will be rewritten. All commit hashes will change.")
+	output.Warn("Collaborators must re-clone or hard reset after you force-push.")
+	output.Warn("If the string is a secret, rotate it now — rewriting history does not invalidate it.")
+
+	// 9. Create backup ref (after confirmation, before rewrite)
+	if req.Backup {
+		output.Print("creating backup ref: %s", backupRef)
+		_, stderr, err := gitutil.Run(root, "git", "update-ref", backupRef, "HEAD")
+		if err != nil {
+			return &gitutil.ExecError{
+				Code:    exitcodes.RewriteExecution,
+				Message: fmt.Sprintf("failed to create backup ref: %s", stderr),
+			}
+		}
+	}
+
+	// 10. Write replacements file, run filter-repo, clean up
+	tmpFile, cleanup, err := filterrepo.WriteReplacementsFile(req.From, req.To)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	output.Print("executing rewrite...")
+	if err := filterrepo.RunReplace(root, tmpFile, req.IncludeTags); err != nil {
+		return err
+	}
+
+	// 11. Strict verification
+	if err := verify.VerifyReplace(root, req.From); err != nil {
+		return err
+	}
+
+	// 12. Success
+	output.Print("rewrite complete and verified.")
+	if req.Backup {
+		output.Print("backup ref: %s", backupRef)
+		output.Print("  to restore: git checkout -b restore-branch %s", backupRef)
+	}
+	return nil
+}
+
+// confirm prompts the user for a yes/no answer.
+func confirm() error {
+	fmt.Print("Proceed with rewrite? [y/N] ")
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		ans := strings.TrimSpace(strings.ToLower(scanner.Text()))
+		if ans == "y" || ans == "yes" {
+			return nil
+		}
+	}
+	return &gitutil.ExecError{
+		Code:    exitcodes.UserDeclined,
+		Message: "user declined confirmation",
+	}
+}
