@@ -1,11 +1,10 @@
 # gitredact
 
-A Go CLI that rewrites Git history to replace a literal string or delete an exact path across all reachable commits. Implemented in pure Go — no Python or external rewrite tools required. Safety-first: dry-run by default, opt-in backup, strict post-rewrite verification.
+A Go CLI that rewrites Git history to replace a literal string or delete an exact path across all reachable commits. Implemented in pure Go — no Python, no external tools required. Safety-first: dry-run by default, opt-in backup, strict post-rewrite verification.
 
 ## Requirements
 
 - Go 1.21+
-- [`git`](https://git-scm.com/) on PATH
 
 ## Build
 

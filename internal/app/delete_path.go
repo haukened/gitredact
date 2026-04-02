@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"gitredact/internal/exitcodes"
@@ -27,12 +26,7 @@ type DeletePathRequest struct {
 
 // RunDeletePath orchestrates the full delete-path workflow.
 func RunDeletePath(req DeletePathRequest) error {
-	// 1. Dependency check
-	if err := gitutil.CheckDeps(); err != nil {
-		return err
-	}
-
-	// 2. Resolve repo root
+	// 1. Resolve repo root
 	root, err := gitutil.ResolveRoot(req.RepoPath)
 	if err != nil {
 		return err
@@ -53,8 +47,14 @@ func RunDeletePath(req DeletePathRequest) error {
 
 	// 4. Preflight: confirm path exists in reachable history
 	output.Verbose("running preflight check...")
-	stdout, _, err := gitutil.Run(root, "git", "log", "--all", "--oneline", "--", req.Path)
-	if err != nil || strings.TrimSpace(stdout) == "" {
+	exists, err := gitutil.PathExistsInHistory(root, req.Path)
+	if err != nil {
+		return &gitutil.ExecError{
+			Code:    exitcodes.NoMatchesFound,
+			Message: fmt.Sprintf("preflight: could not scan history: %v", err),
+		}
+	}
+	if !exists {
 		return &gitutil.ExecError{
 			Code:    exitcodes.NoMatchesFound,
 			Message: fmt.Sprintf("preflight: path %q not found in reachable history", req.Path),
@@ -67,9 +67,9 @@ func RunDeletePath(req DeletePathRequest) error {
 		backupRef = fmt.Sprintf("refs/gitredact-backup/%d", time.Now().Unix())
 	}
 
-	filterRepoCmd := fmt.Sprintf("git-filter-repo --path %s --invert-paths --force", req.Path)
+	rewriteCmd := "gitredact rewriter.DeletePath (pure Go)"
 	if !req.IncludeTags {
-		filterRepoCmd += " --refs refs/heads/*"
+		rewriteCmd += " [branches only]"
 	}
 
 	p := plan.Plan{
@@ -80,7 +80,7 @@ func RunDeletePath(req DeletePathRequest) error {
 		IncludeTags:   req.IncludeTags,
 		BackupEnabled: req.Backup,
 		BackupRef:     backupRef,
-		Commands:      []string{filterRepoCmd},
+		Commands:      []string{rewriteCmd},
 	}
 
 	// 6. Print plan; exit here if dry-run (zero side effects)
@@ -104,12 +104,8 @@ func RunDeletePath(req DeletePathRequest) error {
 	// 9. Create backup ref (after confirmation, before rewrite)
 	if req.Backup {
 		output.Print("creating backup ref: %s", backupRef)
-		_, stderr, err := gitutil.Run(root, "git", "update-ref", backupRef, "HEAD")
-		if err != nil {
-			return &gitutil.ExecError{
-				Code:    exitcodes.RewriteExecution,
-				Message: fmt.Sprintf("failed to create backup ref: %s", stderr),
-			}
+		if err := gitutil.CreateBackupRef(root, backupRef); err != nil {
+			return err
 		}
 	}
 

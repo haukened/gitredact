@@ -30,12 +30,7 @@ type ReplaceRequest struct {
 
 // RunReplace orchestrates the full replace workflow.
 func RunReplace(req ReplaceRequest) error {
-	// 1. Dependency check
-	if err := gitutil.CheckDeps(); err != nil {
-		return err
-	}
-
-	// 2. Resolve repo root
+	// 1. Resolve repo root
 	root, err := gitutil.ResolveRoot(req.RepoPath)
 	if err != nil {
 		return err
@@ -56,8 +51,14 @@ func RunReplace(req ReplaceRequest) error {
 
 	// 4. Preflight: confirm the string exists somewhere in reachable history
 	output.Verbose("running preflight check...")
-	stdout, _, err := gitutil.Run(root, "git", "log", "--all", "-S", req.From, "--oneline")
-	if err != nil || strings.TrimSpace(stdout) == "" {
+	exists, err := gitutil.StringExistsInHistory(root, req.From)
+	if err != nil {
+		return &gitutil.ExecError{
+			Code:    exitcodes.NoMatchesFound,
+			Message: fmt.Sprintf("preflight: could not scan history: %v", err),
+		}
+	}
+	if !exists {
 		return &gitutil.ExecError{
 			Code:    exitcodes.NoMatchesFound,
 			Message: fmt.Sprintf("preflight: string %q not found in reachable history", req.From),
@@ -108,12 +109,8 @@ func RunReplace(req ReplaceRequest) error {
 	// 9. Create backup ref (after confirmation, before rewrite)
 	if req.Backup {
 		output.Print("creating backup ref: %s", backupRef)
-		_, stderr, err := gitutil.Run(root, "git", "update-ref", backupRef, "HEAD")
-		if err != nil {
-			return &gitutil.ExecError{
-				Code:    exitcodes.RewriteExecution,
-				Message: fmt.Sprintf("failed to create backup ref: %s", stderr),
-			}
+		if err := gitutil.CreateBackupRef(root, backupRef); err != nil {
+			return err
 		}
 	}
 

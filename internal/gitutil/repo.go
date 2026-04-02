@@ -3,7 +3,8 @@ package gitutil
 import (
 	"fmt"
 	"os"
-	"strings"
+
+	git "github.com/go-git/go-git/v5"
 
 	"gitredact/internal/exitcodes"
 )
@@ -30,20 +31,27 @@ func ResolveRoot(path string) (string, error) {
 		}
 	}
 
-	stdout, _, err := Run(path, "git", "rev-parse", "--show-toplevel")
+	repo, err := git.PlainOpenWithOptions(path, &git.PlainOpenOptions{DetectDotGit: true})
 	if err != nil {
+		if err == git.ErrRepositoryNotExists {
+			return "", &ExecError{
+				Code:    exitcodes.RepoValidation,
+				Message: fmt.Sprintf("%s is not inside a Git repository", path),
+			}
+		}
 		return "", &ExecError{
 			Code:    exitcodes.RepoValidation,
-			Message: fmt.Sprintf("%s is not inside a Git repository", path),
+			Message: fmt.Sprintf("could not open repository at %s: %v", path, err),
 		}
 	}
 
-	root := strings.TrimSpace(stdout)
-	if root == "" {
+	wt, err := repo.Worktree()
+	if err != nil {
 		return "", &ExecError{
 			Code:    exitcodes.RepoValidation,
-			Message: fmt.Sprintf("could not resolve repo root for %s", path),
+			Message: fmt.Sprintf("could not access worktree: %v", err),
 		}
 	}
-	return root, nil
+
+	return wt.Filesystem.Root(), nil
 }
