@@ -121,7 +121,7 @@ func RunReplace(req ReplaceRequest) error {
 	}
 
 	// 11. Strict verification
-	if err := verify.VerifyReplace(root, req.From); err != nil {
+	if err := verify.VerifyReplace(root, req.From, req.IncludeTags); err != nil {
 		return err
 	}
 

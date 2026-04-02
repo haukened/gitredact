@@ -116,7 +116,7 @@ func RunDeletePath(req DeletePathRequest) error {
 	}
 
 	// 11. Strict verification
-	if err := verify.VerifyDeletePath(root, req.Path); err != nil {
+	if err := verify.VerifyDeletePath(root, req.Path, req.IncludeTags); err != nil {
 		return err
 	}
 
