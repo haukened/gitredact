@@ -1,11 +1,8 @@
-# gitredact
-
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/haukened/gitredact/gosec.yml?label=Security%20Scan)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/haukened/gitredact/ci.yml)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/haukened/gitredact)
 
-
-
+# gitredact
 
 A Go CLI that rewrites Git history to replace a literal string or delete an exact path across all reachable commits. Implemented in pure Go — no Python, no external tools required.
 
