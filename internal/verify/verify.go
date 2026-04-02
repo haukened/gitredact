@@ -10,7 +10,6 @@ import (
 
 	"gitredact/internal/exitcodes"
 	"gitredact/internal/gitutil"
-	"gitredact/internal/output"
 )
 
 // VerifyReplace checks that target no longer appears in any blob reachable from
@@ -19,8 +18,6 @@ import (
 // rewriter's scope so that remote-tracking refs (refs/remotes/*) and backup refs
 // (refs/gitredact-backup/*) are not mistakenly treated as failures.
 func VerifyReplace(root, target string, includeTags bool) error {
-	output.Print("running thorough verification (may take a moment on large repos)...")
-
 	repo, err := git.PlainOpen(root)
 	if err != nil {
 		return fmt.Errorf("verification: could not open repository: %w", err)
@@ -118,8 +115,6 @@ func VerifyReplace(root, target string, includeTags bool) error {
 // (refs/remotes/*) and backup refs (refs/gitredact-backup/*) are not
 // mistakenly treated as failures.
 func VerifyDeletePath(root, path string, includeTags bool) error {
-	output.Print("verifying path removed from history...")
-
 	repo, err := git.PlainOpen(root)
 	if err != nil {
 		return fmt.Errorf("verification: could not open repository: %w", err)

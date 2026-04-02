@@ -89,7 +89,7 @@ func RunReplace(req ReplaceRequest) error {
 
 	// 6. Print plan; exit here if dry-run (zero side effects)
 	if !req.Silent {
-		plan.Print(p)
+		plan.PrintCompact(p)
 	}
 	if req.DryRun {
 		output.Print("dry-run: no changes made")
@@ -103,12 +103,7 @@ func RunReplace(req ReplaceRequest) error {
 		}
 	}
 
-	// 8. Warnings
-	output.Warn("Git history will be rewritten. All commit hashes will change.")
-	output.Warn("Collaborators must re-clone or hard reset after you force-push.")
-	output.Warn("If the string is a secret, rotate it now — rewriting history does not invalidate it.")
-
-	// 9. Create backup ref (after confirmation, before rewrite)
+	// 8. Create backup ref (after confirmation, before rewrite)
 	if req.Backup {
 		output.Print("creating backup ref: %s", backupRef)
 		if err := gitutil.CreateBackupRef(root, backupRef); err != nil {
@@ -116,29 +111,32 @@ func RunReplace(req ReplaceRequest) error {
 		}
 	}
 
-	// 10. Run pure-Go rewriter.
-	output.Print("executing rewrite...")
+	// 9. Run pure-Go rewriter.
 	if err := filterrepo.RunReplace(root, req.From, req.To, req.IncludeTags, req.Silent); err != nil {
 		return err
 	}
 
-	// 11. Strict verification
+	// 10. Strict verification
 	if err := verify.VerifyReplace(root, req.From, req.IncludeTags); err != nil {
 		return err
 	}
 
-	// 12. Success
-	output.Print("rewrite complete and verified.")
+	// 11. Success
+	output.Print("✓ rewrite complete and verified.")
 	if req.Backup {
 		output.Print("backup ref: %s", backupRef)
 		output.Print("  to restore: git checkout -b restore-branch %s", backupRef)
 	}
+
+	// 12. Warnings (shown last so they're the final thing the user sees)
+	output.Warn("All commit hashes will change — collaborators must re-clone or hard-reset after force-push.")
+	output.Warn("If this is a secret, rotate it now — rewriting history does not invalidate it.")
 	return nil
 }
 
 // confirm prompts the user for a yes/no answer.
 func confirm() error {
-	fmt.Print("Proceed with rewrite? [y/N] ")
+	fmt.Print("This will permanently rewrite all branch history. Continue? [y/N] ")
 	scanner := bufio.NewScanner(os.Stdin)
 	if scanner.Scan() {
 		ans := strings.TrimSpace(strings.ToLower(scanner.Text()))

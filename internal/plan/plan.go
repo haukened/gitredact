@@ -16,23 +16,43 @@ type Plan struct {
 	Commands      []string
 }
 
-func Print(p Plan) {
-	fmt.Fprintf(os.Stdout, "\n--- gitredact plan ---\n")
-	fmt.Fprintf(os.Stdout, "repo:         %s\n", p.RepoRoot)
-	fmt.Fprintf(os.Stdout, "operation:    %s\n", p.Operation)
-	for k, v := range p.Params {
-		fmt.Fprintf(os.Stdout, "  %-12s %s\n", k+":", v)
+// maskSecret returns a display-safe representation of s: the character count
+// and the last up to 4 characters, e.g. `<32 chars, ends "3a9f">`.
+func maskSecret(s string) string {
+	n := len(s)
+	tail := s
+	if n > 4 {
+		tail = s[n-4:]
 	}
-	fmt.Fprintf(os.Stdout, "dirty:        %v\n", p.IsDirty)
-	fmt.Fprintf(os.Stdout, "include-tags: %v\n", p.IncludeTags)
+	return fmt.Sprintf(`<%d chars, ends "%s">`, n, tail)
+}
+
+// PrintCompact writes a compact summary of the plan to stdout.
+// Only non-default/active options are shown.
+func PrintCompact(p Plan) {
+	fmt.Fprintf(os.Stdout, "repo:    %s\n", p.RepoRoot)
+
+	switch p.Operation {
+	case "replace":
+		from := p.Params["from"]
+		to := p.Params["to"]
+		fmt.Fprintf(os.Stdout, "replace: %s → %q\n", maskSecret(from), to)
+	case "delete-path":
+		fmt.Fprintf(os.Stdout, "remove:  %s\n", p.Params["path"])
+	default:
+		for k, v := range p.Params {
+			fmt.Fprintf(os.Stdout, "  %-12s %s\n", k+":", v)
+		}
+	}
+
+	if p.IncludeTags {
+		fmt.Fprintf(os.Stdout, "include-tags: true\n")
+	}
+	if p.IsDirty {
+		fmt.Fprintf(os.Stdout, "dirty:   allowed\n")
+	}
 	if p.BackupEnabled {
-		fmt.Fprintf(os.Stdout, "backup:       enabled (%s)\n", p.BackupRef)
-	} else {
-		fmt.Fprintf(os.Stdout, "backup:       disabled (no backup ref will be created)\n")
+		fmt.Fprintf(os.Stdout, "backup:  %s\n", p.BackupRef)
 	}
-	fmt.Fprintf(os.Stdout, "commands:\n")
-	for _, cmd := range p.Commands {
-		fmt.Fprintf(os.Stdout, "  %s\n", cmd)
-	}
-	fmt.Fprintf(os.Stdout, "---\n\n")
+	fmt.Fprintln(os.Stdout)
 }
