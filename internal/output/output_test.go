@@ -96,3 +96,68 @@ func TestSection(t *testing.T) {
 		t.Errorf("Section: expected === delimiters, got %q", got)
 	}
 }
+
+func TestIsVerbose_Default(t *testing.T) {
+	defer SetVerbose(false)
+	SetVerbose(false)
+	if IsVerbose() {
+		t.Error("IsVerbose: expected false by default")
+	}
+}
+
+func TestIsVerbose_WhenEnabled(t *testing.T) {
+	defer SetVerbose(false)
+	SetVerbose(true)
+	if !IsVerbose() {
+		t.Error("IsVerbose: expected true after SetVerbose(true)")
+	}
+}
+
+func TestProgress_DisplaysCounter(t *testing.T) {
+	defer ProgressDone()
+	got := captureStdout(t, func() { Progress("doing stuff", 3, 10) })
+	if !strings.Contains(got, "3/10") {
+		t.Errorf("Progress: expected 3/10 in output, got %q", got)
+	}
+	if !strings.Contains(got, "30%") {
+		t.Errorf("Progress: expected 30%% in output, got %q", got)
+	}
+}
+
+func TestProgress_ZeroTotal(t *testing.T) {
+	defer ProgressDone()
+	got := captureStdout(t, func() { Progress("step", 0, 0) })
+	if !strings.Contains(got, "0/0") {
+		t.Errorf("Progress zero total: expected 0/0, got %q", got)
+	}
+	if !strings.Contains(got, "0%") {
+		t.Errorf("Progress zero total: expected 0%%, got %q", got)
+	}
+}
+
+func TestProgress_ClearedByPrint(t *testing.T) {
+	got := captureStdout(t, func() {
+		Progress("step", 1, 5)
+		Print("after progress")
+	})
+	if !strings.Contains(got, "after progress") {
+		t.Errorf("Progress+Print: expected print content, got %q", got)
+	}
+}
+
+func TestProgressDone_EmitsNewline(t *testing.T) {
+	got := captureStdout(t, func() {
+		Progress("step", 5, 5)
+		ProgressDone()
+	})
+	if !strings.HasSuffix(got, "\n") {
+		t.Errorf("ProgressDone: expected trailing newline, got %q", got)
+	}
+}
+
+func TestProgressDone_IdempotentWhenNotActive(t *testing.T) {
+	got := captureStdout(t, func() { ProgressDone() })
+	if got != "" {
+		t.Errorf("ProgressDone (no active progress): expected empty, got %q", got)
+	}
+}

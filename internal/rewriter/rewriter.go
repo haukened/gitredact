@@ -25,12 +25,14 @@ type Options struct {
 }
 
 type historyRewriter struct {
-	repo      *git.Repository
-	storer    storage.Storer
-	blobCache map[plumbing.Hash]plumbing.Hash
-	treeCache map[plumbing.Hash]plumbing.Hash
-	commitMap map[plumbing.Hash]plumbing.Hash
-	opts      Options
+	repo         *git.Repository
+	storer       storage.Storer
+	blobCache    map[plumbing.Hash]plumbing.Hash
+	treeCache    map[plumbing.Hash]plumbing.Hash
+	commitMap    map[plumbing.Hash]plumbing.Hash
+	opts         Options
+	totalCommits int
+	doneCommits  int
 }
 
 // run is the core entry point used by Replace and DeletePath.
@@ -84,6 +86,22 @@ func run(root string, includeTags bool, opts Options) error {
 		}
 	}
 
+	// Count reachable commits so the progress ticker can show a percentage.
+	// Skipped in silent and verbose modes where this information is not needed.
+	if !opts.Silent && !output.IsVerbose() {
+		var roots []plumbing.Hash
+		for _, entry := range refs {
+			if entry.tagObj != nil {
+				if entry.tagObj.TargetType == plumbing.CommitObject {
+					roots = append(roots, entry.tagObj.Target)
+				}
+			} else {
+				roots = append(roots, entry.ref.Hash())
+			}
+		}
+		rw.totalCommits = countReachableCommits(rw.repo, roots)
+	}
+
 	// Rewrite all commits reachable from each ref (memoized recursion handles order).
 	for _, entry := range refs {
 		var commitHash plumbing.Hash
@@ -99,6 +117,7 @@ func run(root string, includeTags bool, opts Options) error {
 			return fmt.Errorf("rewriting commit %s: %w", commitHash, rewriteErr)
 		}
 	}
+	output.ProgressDone()
 
 	// Update refs to point to the new commit hashes.
 	for _, entry := range refs {
@@ -186,6 +205,10 @@ func (rw *historyRewriter) rewriteCommit(oldHash plumbing.Hash) (plumbing.Hash, 
 
 	if newTreeHash == commit.TreeHash && !parentsChanged {
 		rw.commitMap[oldHash] = oldHash
+		if !rw.opts.Silent && !output.IsVerbose() {
+			rw.doneCommits++
+			output.Progress("remediating commits", rw.doneCommits, rw.totalCommits)
+		}
 		return oldHash, nil
 	}
 
@@ -207,7 +230,12 @@ func (rw *historyRewriter) rewriteCommit(oldHash plumbing.Hash) (plumbing.Hash, 
 
 	rw.commitMap[oldHash] = newHash
 	if !rw.opts.Silent {
-		output.Print("  commit %.8s -> %.8s", oldHash, newHash)
+		rw.doneCommits++
+		if output.IsVerbose() {
+			output.Verbose("  commit %.8s -> %.8s", oldHash, newHash)
+		} else {
+			output.Progress("remediating commits", rw.doneCommits, rw.totalCommits)
+		}
 	}
 	return newHash, nil
 }
@@ -340,4 +368,32 @@ func (rw *historyRewriter) rewriteBlob(oldHash plumbing.Hash, filePath string) (
 
 	rw.blobCache[oldHash] = newHash
 	return newHash, true, nil
+}
+
+// countReachableCommits returns the number of unique commits reachable from
+// the given root hashes via iterative BFS over the parent chain.
+func countReachableCommits(repo *git.Repository, roots []plumbing.Hash) int {
+	seen := make(map[plumbing.Hash]struct{}, len(roots))
+	queue := make([]plumbing.Hash, 0, len(roots))
+	for _, h := range roots {
+		if _, ok := seen[h]; !ok {
+			seen[h] = struct{}{}
+			queue = append(queue, h)
+		}
+	}
+	for len(queue) > 0 {
+		h := queue[0]
+		queue = queue[1:]
+		c, err := repo.CommitObject(h)
+		if err != nil {
+			continue
+		}
+		for _, p := range c.ParentHashes {
+			if _, ok := seen[p]; !ok {
+				seen[p] = struct{}{}
+				queue = append(queue, p)
+			}
+		}
+	}
+	return len(seen)
 }
