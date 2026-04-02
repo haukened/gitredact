@@ -22,6 +22,7 @@ type DeletePathRequest struct {
 	IncludeTags bool
 	AllowDirty  bool
 	Backup      bool
+	Silent      bool
 }
 
 // RunDeletePath orchestrates the full delete-path workflow.
@@ -114,7 +115,7 @@ func RunDeletePath(req DeletePathRequest) error {
 
 	// 10. Run filter-repo
 	output.Print("executing rewrite...")
-	if err := filterrepo.RunDeletePath(root, req.Path, req.IncludeTags); err != nil {
+	if err := filterrepo.RunDeletePath(root, req.Path, req.IncludeTags, req.Silent); err != nil {
 		return err
 	}
 

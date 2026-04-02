@@ -25,6 +25,7 @@ type ReplaceRequest struct {
 	IncludeTags bool
 	AllowDirty  bool
 	Backup      bool
+	Silent      bool
 }
 
 // RunReplace orchestrates the full replace workflow.
@@ -69,9 +70,9 @@ func RunReplace(req ReplaceRequest) error {
 		backupRef = fmt.Sprintf("refs/gitredact-backup/%d", time.Now().Unix())
 	}
 
-	filterRepoCmd := "git-filter-repo --replace-text <tmpfile> --force"
+	rewriteCmd := "gitredact rewriter.Replace (pure Go)"
 	if !req.IncludeTags {
-		filterRepoCmd += " --refs refs/heads/*"
+		rewriteCmd += " [branches only]"
 	}
 
 	p := plan.Plan{
@@ -82,7 +83,7 @@ func RunReplace(req ReplaceRequest) error {
 		IncludeTags:   req.IncludeTags,
 		BackupEnabled: req.Backup,
 		BackupRef:     backupRef,
-		Commands:      []string{filterRepoCmd},
+		Commands:      []string{rewriteCmd},
 	}
 
 	// 6. Print plan; exit here if dry-run (zero side effects)
@@ -116,15 +117,9 @@ func RunReplace(req ReplaceRequest) error {
 		}
 	}
 
-	// 10. Write replacements file, run filter-repo, clean up
-	tmpFile, cleanup, err := filterrepo.WriteReplacementsFile(req.From, req.To)
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-
+	// 10. Run pure-Go rewriter.
 	output.Print("executing rewrite...")
-	if err := filterrepo.RunReplace(root, tmpFile, req.IncludeTags); err != nil {
+	if err := filterrepo.RunReplace(root, req.From, req.To, req.IncludeTags, req.Silent); err != nil {
 		return err
 	}
 

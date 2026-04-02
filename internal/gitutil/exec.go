@@ -26,7 +26,7 @@ func Run(root string, args ...string) (string, string, error) {
 }
 
 func CheckDeps() error {
-	for _, bin := range []string{"git", "git-filter-repo"} {
+	for _, bin := range []string{"git"} {
 		if _, err := exec.LookPath(bin); err != nil {
 			return &ExecError{
 				Code:    exitcodes.DependencyMissing,
