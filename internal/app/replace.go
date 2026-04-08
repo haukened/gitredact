@@ -25,6 +25,7 @@ type ReplaceRequest struct {
 	IncludeTags bool
 	AllowDirty  bool
 	Backup      bool
+	ShowFiles   bool
 	Silent      bool
 }
 
@@ -51,17 +52,34 @@ func RunReplace(req ReplaceRequest) error {
 
 	// 4. Preflight: confirm the string exists somewhere in reachable history
 	output.Verbose("running preflight check...")
-	exists, err := gitutil.StringExistsInHistory(root, req.From)
-	if err != nil {
-		return &gitutil.ExecError{
-			Code:    exitcodes.NoMatchesFound,
-			Message: fmt.Sprintf("preflight: could not scan history: %v", err),
+	matches := []gitutil.StringMatchLocation(nil)
+	if req.ShowFiles {
+		matches, err = gitutil.FindStringMatchesInHistory(root, req.From)
+		if err != nil {
+			return &gitutil.ExecError{
+				Code:    exitcodes.NoMatchesFound,
+				Message: fmt.Sprintf("preflight: could not scan history: %v", err),
+			}
 		}
-	}
-	if !exists {
-		return &gitutil.ExecError{
-			Code:    exitcodes.NoMatchesFound,
-			Message: fmt.Sprintf("preflight: string %q not found in reachable history", req.From),
+		if len(matches) == 0 {
+			return &gitutil.ExecError{
+				Code:    exitcodes.NoMatchesFound,
+				Message: fmt.Sprintf("preflight: string %q not found in reachable history", req.From),
+			}
+		}
+	} else {
+		found, err := gitutil.StringExistsInHistory(root, req.From)
+		if err != nil {
+			return &gitutil.ExecError{
+				Code:    exitcodes.NoMatchesFound,
+				Message: fmt.Sprintf("preflight: could not scan history: %v", err),
+			}
+		}
+		if !found {
+			return &gitutil.ExecError{
+				Code:    exitcodes.NoMatchesFound,
+				Message: fmt.Sprintf("preflight: string %q not found in reachable history", req.From),
+			}
 		}
 	}
 
@@ -76,6 +94,18 @@ func RunReplace(req ReplaceRequest) error {
 		rewriteCmd += " [branches only]"
 	}
 
+	affectedFiles := []plan.AffectedFile(nil)
+	if req.ShowFiles {
+		affectedFiles = make([]plan.AffectedFile, 0, len(matches))
+		for _, m := range matches {
+			affectedFiles = append(affectedFiles, plan.AffectedFile{
+				Path:              m.Path,
+				FirstMatchCommit:  m.FirstMatchCommit,
+				FirstMatchSummary: m.FirstMatchSummary,
+			})
+		}
+	}
+
 	p := plan.Plan{
 		RepoRoot:      root,
 		Operation:     "replace",
@@ -85,6 +115,7 @@ func RunReplace(req ReplaceRequest) error {
 		BackupEnabled: req.Backup,
 		BackupRef:     backupRef,
 		Commands:      []string{rewriteCmd},
+		AffectedFiles: affectedFiles,
 	}
 
 	// 6. Print plan; exit here if dry-run (zero side effects)

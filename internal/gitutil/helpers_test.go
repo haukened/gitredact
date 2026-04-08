@@ -7,6 +7,7 @@ import (
 	"time"
 
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
@@ -27,6 +28,11 @@ func initRepo(t *testing.T) (dir string, repo *git.Repository) {
 // commit with the given message. filename may contain path separators.
 func commitFile(t *testing.T, dir string, repo *git.Repository, filename, content, message string) {
 	t.Helper()
+	_ = commitFileAt(t, dir, repo, filename, content, message, time.Now())
+}
+
+func commitFileAt(t *testing.T, dir string, repo *git.Repository, filename, content, message string, when time.Time) plumbing.Hash {
+	t.Helper()
 	fullPath := filepath.Join(dir, filepath.FromSlash(filename))
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
@@ -42,14 +48,15 @@ func commitFile(t *testing.T, dir string, repo *git.Repository, filename, conten
 	if _, err := wt.Add(relPath); err != nil {
 		t.Fatalf("wt.Add(%q): %v", relPath, err)
 	}
-	_, err = wt.Commit(message, &git.CommitOptions{
+	h, err := wt.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Test User",
 			Email: "test@example.com",
-			When:  time.Now(),
+			When:  when,
 		},
 	})
 	if err != nil {
 		t.Fatalf("wt.Commit(%q): %v", message, err)
 	}
+	return h
 }
