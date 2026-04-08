@@ -105,3 +105,18 @@ func TestNewReplaceCommand_Action_NoPositionalArg(t *testing.T) {
 		t.Log("replace action (no positional arg): got nil, string may actually exist in CWD repo")
 	}
 }
+
+func TestNewReplaceCommand_HasShowFilesFlag(t *testing.T) {
+	cmd := NewReplaceCommand()
+	var found bool
+	for _, f := range cmd.Flags {
+		for _, n := range f.Names() {
+			if n == "show-files" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Error("NewReplaceCommand: missing --show-files flag")
+	}
+}

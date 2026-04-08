@@ -26,6 +26,10 @@ func NewReplaceCommand() *cli.Command {
 				DefaultText: "REDACTED",
 				Value:       "REDACTED",
 			},
+			&cli.BoolFlag{
+				Name:  "show-files",
+				Usage: "show affected files and earliest matching commit before rewriting",
+			},
 		}...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			output.SetVerbose(cmd.Bool("verbose"))
@@ -43,6 +47,7 @@ func NewReplaceCommand() *cli.Command {
 				IncludeTags: cmd.Bool("include-tags"),
 				AllowDirty:  cmd.Bool("allow-dirty"),
 				Backup:      cmd.Bool("backup"),
+				ShowFiles:   cmd.Bool("show-files"),
 				Silent:      cmd.Bool("silent"),
 			})
 		},

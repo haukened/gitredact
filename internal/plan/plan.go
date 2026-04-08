@@ -3,7 +3,14 @@ package plan
 import (
 	"fmt"
 	"os"
+	"strings"
 )
+
+type AffectedFile struct {
+	Path              string
+	FirstMatchCommit  string
+	FirstMatchSummary string
+}
 
 type Plan struct {
 	RepoRoot      string
@@ -14,6 +21,7 @@ type Plan struct {
 	BackupEnabled bool
 	BackupRef     string
 	Commands      []string
+	AffectedFiles []AffectedFile
 }
 
 // maskSecret returns a display-safe representation of s: the character count
@@ -53,6 +61,18 @@ func PrintCompact(p Plan) {
 	}
 	if p.BackupEnabled {
 		fmt.Fprintf(os.Stdout, "backup:  %s\n", p.BackupRef)
+	}
+	if len(p.AffectedFiles) > 0 {
+		fmt.Fprintf(os.Stdout, "affected files: %d\n", len(p.AffectedFiles))
+		for _, f := range p.AffectedFiles {
+			commit := f.FirstMatchCommit
+			if len(commit) > 8 {
+				commit = commit[:8]
+			}
+			summary := strings.Split(strings.TrimSpace(f.FirstMatchSummary), "\n")[0]
+			fmt.Fprintf(os.Stdout, "  - %s\n", f.Path)
+			fmt.Fprintf(os.Stdout, "    first match: %s %s\n", commit, summary)
+		}
 	}
 	fmt.Fprintln(os.Stdout)
 }
